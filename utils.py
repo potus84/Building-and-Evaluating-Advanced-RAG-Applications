@@ -6,12 +6,63 @@ from llama_index.indices.postprocessor import MetadataReplacementPostProcessor
 from llama_index.indices.postprocessor import SentenceTransformerRerank
 from llama_index import load_index_from_storage
 import os
+from llama_index.node_parser import HierarchicalNodeParser
+from llama_index.node_parser import get_leaf_nodes
+from llama_index import StorageContext
+from llama_index.retrievers import AutoMergingRetriever
+from llama_index.indices.postprocessor import SentenceTransformerRerank
+from llama_index.query_engine import RetrieverQueryEngine
+import openai
+from config import Settings
+from llama_index.llms import AzureOpenAI
+
+
+def get_llm_model(cfg: Settings, system_prompt: str = None):
+    openai.api_key = cfg.AZURE_OPENAI_API_KEY
+    llm = AzureOpenAI(
+        engine=cfg.AZURE_DEPLOYMENT_NAME,
+        model=cfg.AZURE_DEPLOYMENT_MODEL,
+        temperature=0.1,
+        azure_endpoint=cfg.AZURE_OPENAI_API_ENDPOINT,
+        azure_api_key=cfg.AZURE_OPENAI_API_KEY,
+        api_version=cfg.AZURE_OPENAI_API_VERSION,
+        system_prompt=system_prompt,
+    )
+    return llm
+
+
+def build_index(
+    document,
+    node_parser,
+    llm,
+    embed_model="local:BAAI/bge-small-en-v1.5",
+    save_dir="sentence_index",
+):
+    # create the sentence window node parser w/ default settings
+    sentence_context = ServiceContext.from_defaults(
+        llm=llm,
+        embed_model=embed_model,
+        node_parser=node_parser,
+    )
+    if not os.path.exists(save_dir):
+        custom_index = VectorStoreIndex.from_documents(
+            [document], service_context=sentence_context
+        )
+        custom_index.storage_context.persist(persist_dir=save_dir)
+    else:
+        custom_index = load_index_from_storage(
+            StorageContext.from_defaults(persist_dir=save_dir),
+            service_context=sentence_context,
+        )
+
+    return custom_index
 
 
 def build_sentence_window_index(
-    document, llm, 
-    embed_model="local:BAAI/bge-small-en-v1.5", 
-    save_dir="sentence_index"
+    document,
+    llm,
+    embed_model="local:BAAI/bge-small-en-v1.5",
+    save_dir="sentence_index",
 ):
     # create the sentence window node parser w/ default settings
     node_parser = SentenceWindowNodeParser.from_defaults(
@@ -50,19 +101,10 @@ def get_sentence_window_query_engine(
     )
 
     sentence_window_engine = sentence_index.as_query_engine(
-        similarity_top_k=similarity_top_k, 
-        node_postprocessors=[postproc, rerank]
+        similarity_top_k=similarity_top_k,
+        node_postprocessors=[postproc, rerank],
     )
     return sentence_window_engine
-
-
-from llama_index.node_parser import HierarchicalNodeParser
-
-from llama_index.node_parser import get_leaf_nodes
-from llama_index import StorageContext
-from llama_index.retrievers import AutoMergingRetriever
-from llama_index.indices.postprocessor import SentenceTransformerRerank
-from llama_index.query_engine import RetrieverQueryEngine
 
 
 def build_automerging_index(
@@ -85,7 +127,9 @@ def build_automerging_index(
 
     if not os.path.exists(save_dir):
         automerging_index = VectorStoreIndex(
-            leaf_nodes, storage_context=storage_context, service_context=merging_context
+            leaf_nodes,
+            storage_context=storage_context,
+            service_context=merging_context,
         )
         automerging_index.storage_context.persist(persist_dir=save_dir)
     else:
@@ -101,7 +145,9 @@ def get_automerging_query_engine(
     similarity_top_k=12,
     rerank_top_n=2,
 ):
-    base_retriever = automerging_index.as_retriever(similarity_top_k=similarity_top_k)
+    base_retriever = automerging_index.as_retriever(
+        similarity_top_k=similarity_top_k
+    )
     retriever = AutoMergingRetriever(
         base_retriever, automerging_index.storage_context, verbose=True
     )

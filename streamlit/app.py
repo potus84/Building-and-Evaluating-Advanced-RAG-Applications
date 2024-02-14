@@ -1,6 +1,4 @@
 import streamlit as st
-from llama_index.llms import AzureOpenAI
-import openai
 from llama_index import (
     SimpleDirectoryReader,
     VectorStoreIndex,
@@ -10,9 +8,9 @@ from llama_index.indices.postprocessor import (
     SentenceTransformerRerank,
 )
 
-from config import settings, Settings
+from config import settings
 
-from utils import build_sentence_window_index
+from utils import build_sentence_window_index, get_llm_model
 from llama_index.chat_engine.types import BaseChatEngine
 
 
@@ -23,7 +21,7 @@ def get_sentence_window_chat_engine(
     chat_mode="condense_question",
 ) -> BaseChatEngine:
     # define postprocessors
-    # postproc = MetadataReplacementPostProcessor(target_metadata_key="window")
+    postproc = MetadataReplacementPostProcessor(target_metadata_key="window")
     rerank = SentenceTransformerRerank(
         top_n=rerank_top_n, model="BAAI/bge-reranker-base"
     )
@@ -32,7 +30,7 @@ def get_sentence_window_chat_engine(
         chat_mode=chat_mode,
         verbose=True,
         similarity_top_k=similarity_top_k,
-        node_postprocessors=[rerank],
+        node_postprocessors=[rerank, postproc],
     )
     return sentence_window_chat_engine
 
@@ -47,7 +45,9 @@ st.set_page_config(
 st.title("Chat med Crayonite 💬🦙")
 
 
-if "messages" not in st.session_state.keys():  # Initialize the chat messages history
+if (
+    "messages" not in st.session_state.keys()
+):  # Initialize the chat messages history
     st.session_state.messages = [
         {
             "role": "assistant",
@@ -58,31 +58,15 @@ if "messages" not in st.session_state.keys():  # Initialize the chat messages hi
     ]
 
 
-def get_llm_model(cfg: Settings):
-    openai.api_key = cfg.AZURE_OPENAI_API_KEY
-    llm = AzureOpenAI(
-        engine=cfg.AZURE_DEPLOYMENT_NAME,
-        model=cfg.AZURE_DEPLOYMENT_MODEL,
-        temperature=0.1,
-        azure_endpoint=cfg.AZURE_OPENAI_API_ENDPOINT,
-        azure_api_key=cfg.AZURE_OPENAI_API_KEY,
-        api_version=cfg.AZURE_OPENAI_API_VERSION,
-        system_prompt="Du er en HR-ekspert og jobber med å \
-            svare på HR-spørsmål.\
-        Anta at alle spørsmål er relatert til Crayon \
-            sitt interne dokumentasjonssystem. \
-        Hold svarene dine tekniske og basert på fakta – \
-              ikke hallusiner funksjoner.",
-    )
-    return llm
-
-
 @st.cache_resource(show_spinner=False)
 def load_data():
     with st.spinner(
         text="Loading and indexing the Crayon – hang tight! This should take 1-2 minutes."
     ):
-        azure_llm = get_llm_model(cfg=settings)
+        system_prompt = "Du er en HR-ekspert og jobber med å svare på HR-spørsmål. \
+        Anta at alle spørsmål er relatert til Crayon sitt interne dokumentasjonssystem. \
+        Hold svarene dine tekniske og basert på fakta – ikke hallusiner funksjoner."
+        azure_llm = get_llm_model(cfg=settings, system_prompt=system_prompt)
         # reader = SimpleDirectoryReader(input_dir="./data", recursive=True)
         # docs = reader.load_data()
         # service_context = ServiceContext.from_defaults(llm=azure_llm)
@@ -103,7 +87,9 @@ if "chat_engine" not in st.session_state.keys():  # Initialize the chat engine
     #     chat_mode="condense_question", verbose=True
     # )
     # st.session_state.chat_engine = get_sentence_window_query_engine(index, 6, 3)
-    st.session_state.chat_engine = get_sentence_window_chat_engine(index, 6, 3)
+    st.session_state.chat_engine = get_sentence_window_chat_engine(
+        index, 6, 3, chat_mode="context"
+    )
 
 if prompt := st.chat_input(
     "Your question"
@@ -122,4 +108,6 @@ if st.session_state.messages[-1]["role"] != "assistant":
             # response = st.session_state.chat_engine.query(prompt)
             st.write(response.response)
             message = {"role": "assistant", "content": response.response}
-            st.session_state.messages.append(message)  # Add response to message history
+            st.session_state.messages.append(
+                message
+            )  # Add response to message history
