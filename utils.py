@@ -38,7 +38,7 @@ def build_index(
     embed_model="local:BAAI/bge-small-en-v1.5",
     save_dir="sentence_index",
 ):
-    # create the sentence window node parser w/ default settings
+    # create the node parser
     sentence_context = ServiceContext.from_defaults(
         llm=llm,
         embed_model=embed_model,

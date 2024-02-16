@@ -7,10 +7,16 @@ from llama_index.indices.postprocessor import (
     MetadataReplacementPostProcessor,
     SentenceTransformerRerank,
 )
+from llama_index.node_parser import SemanticSplitterNodeParser
 
 from config import settings
 
-from utils import build_sentence_window_index, get_llm_model
+from utils import (
+    build_sentence_window_index,
+    get_llm_model,
+    build_index,
+    build_automerging_index,
+)
 from llama_index.chat_engine.types import BaseChatEngine
 
 
@@ -71,11 +77,18 @@ def load_data():
         # docs = reader.load_data()
         # service_context = ServiceContext.from_defaults(llm=azure_llm)
         # index = VectorStoreIndex.from_documents(docs, service_context=service_context)
-        index = build_sentence_window_index(
-            document=SimpleDirectoryReader(
+        # index = build_sentence_window_index(
+        #     document=SimpleDirectoryReader(
+        #         input_dir="./data", recursive=True
+        #     ).load_data(),
+        #     llm=azure_llm,
+        # )
+        index = build_automerging_index(
+            documents=SimpleDirectoryReader(
                 input_dir="./data", recursive=True
             ).load_data(),
             llm=azure_llm,
+            save_dir="merging_index_1",
         )
         return index
 
@@ -88,7 +101,7 @@ if "chat_engine" not in st.session_state.keys():  # Initialize the chat engine
     # )
     # st.session_state.chat_engine = get_sentence_window_query_engine(index, 6, 3)
     st.session_state.chat_engine = get_sentence_window_chat_engine(
-        index, 6, 3, chat_mode="context"
+        index, 6, 3, chat_mode="condense_question"
     )
 
 if prompt := st.chat_input(
