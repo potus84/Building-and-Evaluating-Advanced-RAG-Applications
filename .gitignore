@@ -1,3 +1,9 @@
 .DS_Store
+.env
 *.pdf
-sentence_index*/
+*_index*/
+*.pyc
+__pycache__/
+.streamlit/credentials.toml
+.streamlit/config.toml
+default.sqlite
