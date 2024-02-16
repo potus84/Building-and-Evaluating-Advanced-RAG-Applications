@@ -1,19 +1,15 @@
-# Building and Evaluating Advanced RAG Applications
+# Building LlaMaIndex index for RAG on Crayon's personal handbook
 
-Jupyter notebooks for course `Building and Evaluating Advanced RAG Applications`, taught by Jerry Liu (Co-founder and CEO of LlamaIndex) and Anupam Datta (Co-founder and chief scientist of TruEra).
-
-## Course Topics
-
-Learn how to efficiently bring Retrieval Augmented Generation (RAG) into production by enhancing retrieval techniques and mastering evaluation metrics.
-
-- Learn methods like sentence-window retrieval and auto-merging retrieval, improving your RAG pipeline’s performance beyond the baseline.
-- Learn evaluation best practices to streamline your process, and iteratively build a robust system.
-- Dive into the RAG triad for evaluating the relevance and truthfulness of an LLM’s response:Context Relevance, Groundedness, and Answer Relevance.
+- Streamlit app that allows use to chat with a prebuilt RAG index.
+- Contains a EDA notebook for testing heuristicsly for embeddings models based on this leaderboard https://kennethenevoldsen.github.io/scandinavian-embedding-benchmark/
+- This contains forked notebooks for course `Building and Evaluating Advanced RAG Applications` https://www.deeplearning.ai/short-courses/building-evaluating-advanced-rag/. The code is adapted to work with the Azure ChatLLM deployment.
 
 
-## Course Link
 
-https://www.deeplearning.ai/short-courses/building-evaluating-advanced-rag/
+## Requirements
+
+- A deployment of LLM for chatting on Azure.
+- Virtual environment setup with `poetry`, as defined in `pyproject.toml`
 
 ## Resource Links
 
