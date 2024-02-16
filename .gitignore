@@ -4,3 +4,6 @@
 *_index*/
 *.pyc
 __pycache__/
+.streamlit/credentials.toml
+.streamlit/config.toml
+default.sqlite
